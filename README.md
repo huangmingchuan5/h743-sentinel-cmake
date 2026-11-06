@@ -116,7 +116,7 @@ export TOOLCHAIN_ROOT=/your/toolchain/root
 
 ```
 help  color  pwm  save  load  info  dump  erase  i2c  sensor
-live  time   qtest alarm cfg   status wd     logpause
+live  time   alarm cfg   status wd     logpause
 ```
 
 常用：
@@ -124,15 +124,15 @@ live  time   qtest alarm cfg   status wd     logpause
 ```text
 > status           # 任务报活、堆余量、日志计数
 > sensor           # AP3216C / MPU6050 实时值
-> live on          # 周期打印监测行
-> dump 0 16        # 导出最近 16 条日志
+> live 5           # 连续打印 5 行实时快照（约 100 ms 一行）
+> dump 16          # 导出最近 16 条日志
 > wd test          # 停止喂狗，验证 IWDG 复位（谨慎）
 ```
 
 ## 设计取舍
 
 - **不用队列集**：V9 支持 Queue Set，但“任务通知 + 双队列”更容易看出是谁唤醒了 Logger，也少一层注册。
-- **日志失败退避 200 ms**：写 Flash 失败时若立即重试，prio 2 的 Logger 会长期占用 CPU，饿死 prio 1 的 Health，表现为 3 s IWDG 复位而不是报错。
+- **日志失败退避 200 ms**：QSPI 持续报错时若立即重试，prio 2 的 Logger 会反复占满 CPU，让 CON/LOG/MON 等任务得不到心跳；prio 7 的 HealthTask 虽能抢占，但会据此停喂 IWDG。退避给低优先级任务留出运行时间，也避免对故障 Flash 高频擦写。
 - **QSPI 默认 60 MHz**：120 MHz 下能读 ID，但擦/写不稳定；`quadspi.c` 的 `ClockPrescaler=3` 是实测折中。
 - **HAL 时基用 TIM7**：SysTick 归 FreeRTOS，HAL 的 `HAL_Delay`/超时仍能工作。
 - **FreeRTOS 端口换 GCC 版**：V9 的 RVDS 端口是 armcc 语法，不能直接用 GCC 编译。
@@ -162,4 +162,4 @@ live  time   qtest alarm cfg   status wd     logpause
 - `Drivers/`：STM32H7 HAL **BSD-3-Clause**，CMSIS **Apache-2.0**
 - `startup_stm32h743xx.s`、`STM32H743XX_FLASH.ld`、CubeMX 生成的 `Core/`：**BSD-3-Clause**
 
-完整清单与许可证全文见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 与 [`LICENSES/`](LICENSES/)。
+第三方组件清单见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)；GPLv2、BSD-3-Clause、Apache-2.0 的**全文**在 [`LICENSES/`](LICENSES/)。其中 `LICENSES/FreeRTOS-exception.txt` 是 FreeRTOS 源文件头部例外条款声明的逐字摘录与官方链接说明，**不是一份独立的例外条款全文**，权威表述以内核源码头部及 FreeRTOS 官方页面为准。

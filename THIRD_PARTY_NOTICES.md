@@ -6,7 +6,7 @@
 
 | 组件 | 仓库内位置 | 版权方 | 许可证 | 依据文件 |
 |---|---|---|---|---|
-| FreeRTOS Kernel V9.0.0 | `FreeRTOS/` | Real Time Engineers Ltd. | **GPL-2.0 WITH FreeRTOS-exception** | `LICENSES/GPL-2.0.txt`、`LICENSES/FreeRTOS-exception.txt` |
+| FreeRTOS Kernel V9.0.0 | `FreeRTOS/` | Real Time Engineers Ltd. | **GPL-2.0 WITH FreeRTOS-exception** | `LICENSES/GPL-2.0.txt`（全文）、`LICENSES/FreeRTOS-exception.txt`（例外条款摘录与说明） |
 | STM32H7 HAL 驱动 | `Drivers/STM32H7xx_HAL_Driver/` | STMicroelectronics | **BSD-3-Clause** | `Drivers/STM32H7xx_HAL_Driver/LICENSE.txt` |
 | CMSIS Core / Device | `Drivers/CMSIS/` | Arm Limited | **Apache-2.0** | `Drivers/CMSIS/LICENSE.txt` |
 | CubeMX 生成代码 | `Core/Inc/`、`Core/Src/`（USER CODE 区除外） | STMicroelectronics | **BSD-3-Clause** | 文件头版权声明 |
@@ -21,7 +21,8 @@
 | 位置 | `FreeRTOS/src/`、`FreeRTOS/include/`、`FreeRTOS/port/` |
 | 版权 | Copyright (C) 2016 Real Time Engineers Ltd. / FreeRTOS.org |
 | 许可 | **GNU GPL v2.0 + FreeRTOS exception**（`GPL-2.0 WITH FreeRTOS-exception`） |
-| 全文 | `LICENSES/GPL-2.0.txt`、`LICENSES/FreeRTOS-exception.txt` |
+| 许可证文本 | GPLv2 全文：`LICENSES/GPL-2.0.txt`；例外条款：`LICENSES/FreeRTOS-exception.txt` 是内核源文件头部声明的逐字摘录 + 官方链接说明，**不是一份独立的例外条款全文** |
+| 权威出处 | 内核源码头部声明、<https://www.freertos.org/a00114.html> |
 | 来源 | <https://www.freertos.org/> |
 
 > **V9.0.0 不是 MIT**：FreeRTOS 自 V10.0.0 起才改为 MIT。
@@ -87,4 +88,4 @@ This repository's original code (`App/`, `BSP/`, `User/FreeRTOSConfig.h`, projec
 - `Drivers/CMSIS/` — Apache-2.0, © Arm Limited
 - `startup_stm32h743xx.s`, `STM32H743XX_FLASH.ld`, CubeMX-generated `Core/` — BSD-3-Clause, © STMicroelectronics
 
-Full license texts are in `LICENSES/`. Keep all copyright notices and license files when redistributing.
+Full license texts for GPLv2, BSD-3-Clause and Apache-2.0 are in `LICENSES/`. `LICENSES/FreeRTOS-exception.txt` is a verbatim excerpt of the exception notice found in the FreeRTOS kernel source headers plus the official link, not a standalone full text. Keep all copyright notices and license files when redistributing.
