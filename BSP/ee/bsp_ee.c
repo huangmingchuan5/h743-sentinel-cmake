@@ -13,7 +13,7 @@
 #include "i2c.h"                    /* CubeMX 生成的 hi2c4 */
 #include "bsp_i2c_bus.h"            /* I2C4 总线互斥量 */
 
-/* 判断 EEPROM 芯片是否正常连接并响应 I2C 通信。 */
+/* 判断 EEPROM 芯片是否正常连接并响应 I2C 通信*/
 uint8_t Ee_Check(void)
 {
   uint8_t st;

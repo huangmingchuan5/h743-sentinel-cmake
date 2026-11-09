@@ -65,7 +65,7 @@ uint8_t I2cBus_Probe(uint8_t addr7)
 
   if (I2cBus_Take(I2C_BUS_TIMEOUT_MS) == 0u)
   {
-    return 0u;
+    return 0u;      //失败
   }
 
   /* HAL 的 DevAddress 参数是"7 位地址左移 1 位" 

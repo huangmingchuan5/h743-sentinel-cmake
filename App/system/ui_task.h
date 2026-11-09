@@ -19,7 +19,7 @@
 /** 调度器启动前调用：蜂鸣器 GPIO + 按键 EXTI + 创建 UiTask（优先级 4）。 */
 void Ui_Start(void);
 
-/** 取最近一次"确认 → 声光"延迟（ms）。返回 0 = 还没有报警过。 */
+/* 取最近一次"确认 → 声光"延迟（ms）。返回 0 = 还没有报警过。 */
 uint8_t Ui_GetAlarmLatency(uint32_t *ms);
 
 #endif /* __UI_TASK_H */

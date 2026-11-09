@@ -29,6 +29,7 @@ static uint32_t Pwm_CcrOf(uint8_t brightness)
   return ((uint32_t)(100u - brightness) * PWM_PERIOD_TICKS) / 100u;		//因为 LED 低电平点亮，亮度越高，CCR 应该越小。
 }
 
+//它是 PWM 和"呼吸节拍"的总启动函数——把红/绿/蓝三路 PWM 输出打开,并启动 TIM6 的 10ms 更新中断,让 LED 驱动系统真正开始运转。
 void Pwm_Init(void)
 {
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);   /* 红 PB0 */
@@ -40,7 +41,7 @@ void Pwm_Init(void)
 
 void Pwm_SetBrightness(uint8_t ch, uint8_t brightness)
 {
-  uint32_t ccr = Pwm_CcrOf(brightness);
+  uint32_t ccr = Pwm_CcrOf(brightness);       //实现亮度 -->  CCR 的转换
 
   switch (ch)
   {

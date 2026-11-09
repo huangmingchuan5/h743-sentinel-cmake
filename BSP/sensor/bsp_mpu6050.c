@@ -26,17 +26,21 @@ static uint8_t s_whoami = 0u;
 
 static uint8_t Mpu_WriteReg(uint8_t reg, uint8_t val)
 {
+  //传 7位地址 + 1位读写位(reg表示写/读的起始地址)
   return (uint8_t)HAL_I2C_Mem_Write(&hi2c4, (uint16_t)(MPU6050_ADDR7 << 1), reg,
                                     I2C_MEMADD_SIZE_8BIT, &val, 1u, MPU_IO_TIMEOUT_MS);
 }
 
+
+//读len个寄存器的数据存放进 buf
 static uint8_t Mpu_ReadRegs(uint8_t reg, uint8_t *buf, uint16_t len)
 {
+  //HAL_OK == 0
   return (uint8_t)HAL_I2C_Mem_Read(&hi2c4, (uint16_t)(MPU6050_ADDR7 << 1), reg,
                                    I2C_MEMADD_SIZE_8BIT, buf, len, MPU_IO_TIMEOUT_MS);
 }
 
-/* ---- 公开接口 ---- */
+/* ---- 公开接口（加锁） ---- */
 
 uint8_t Mpu6050_Init(void)
 {
@@ -50,7 +54,7 @@ uint8_t Mpu6050_Init(void)
     return I2C_BUS_ERR_BUSY;
   }
 
-  /* 把WHOAMI寄存器内的（只是从0x75处开始读）内容读入&id*/
+  /* 把WHOAMI寄存器内的（只是从0x75处开始读） 1字节 内容读入&id*/
   if (Mpu_ReadRegs(MPU_RA_WHO_AM_I, &id, 1u) != 0u)		//不为0报错
   {
     I2cBus_Give();

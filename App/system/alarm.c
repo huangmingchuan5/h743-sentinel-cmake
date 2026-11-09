@@ -180,6 +180,7 @@ void Alarm_FeedMotion(int16_t ax, int16_t ay, int16_t az, uint8_t valid)
   }
 }
 
+//是否存在任一警报（1-->存在）
 uint8_t Alarm_IsActive(void)
 {
   return ((s_lightAlarm != 0u) || (s_motionAlarm != 0u)) ? 1u : 0u;
@@ -195,12 +196,13 @@ void Alarm_SetMuted(uint8_t muted)
   s_muted = (muted != 0u) ? 1u : 0u;
 }
 
+//清楚报警
 void Alarm_Clear(void)
 {
   uint8_t was;
 
   taskENTER_CRITICAL();
-  was = Alarm_IsActive();
+  was = Alarm_IsActive();     //当前是否正在报警？
   s_lightAlarm  = 0u;
   s_motionAlarm = 0u;
   s_lightCnt    = 0u;
@@ -210,8 +212,9 @@ void Alarm_Clear(void)
 
   xEventGroupClearBits(sysEvents, EVT_ALARM_ANY);   /* 无论是否触发过都清干净 */
 
-  if (was != 0u)
+  if (was != 0u)  //如果当前在报警就停止静音定时器-->主动静音一段时间
   {
+    //既然已经清除报警，自然也不需要静音定时器
     if (s_muteTimer != NULL) { (void)xTimerStop(s_muteTimer, 0u); }
     Alarm_LogEvent(SAMPLE_F_EVT_CLEAR);
   }

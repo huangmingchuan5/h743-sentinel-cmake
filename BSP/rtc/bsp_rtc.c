@@ -86,8 +86,8 @@ static uint8_t WeekDayOf(uint32_t epoch)
 
 uint8_t Rtc_Init(void)
 {
-  RCC_OscInitTypeDef       osc  = {0};
-  RCC_PeriphCLKInitTypeDef pclk = {0};
+  RCC_OscInitTypeDef        osc  = {0};
+  RCC_PeriphCLKInitTypeDef  pclk = {0};
   uint8_t lse_ok = 1u;
 
   HAL_PWR_EnableBkUpAccess();          /* 允许写备份域（LSE / RTC / 备份寄存器） */
@@ -124,7 +124,7 @@ uint8_t Rtc_Init(void)
   s_hrtc.Instance            = RTC;
   s_hrtc.Init.HourFormat     = RTC_HOURFORMAT_24;
   s_hrtc.Init.AsynchPrediv   = 127u;
-  s_hrtc.Init.SynchPrediv    = (lse_ok != 0u) ? 255u : 249u;
+  s_hrtc.Init.SynchPrediv    = (lse_ok != 0u) ? 255u : 249u;      //配置1Hz的计数频率
   //是否输出、映射到哪个引脚、极性、输出类型
   s_hrtc.Init.OutPut         = RTC_OUTPUT_DISABLE;
   s_hrtc.Init.OutPutRemap    = RTC_OUTPUT_REMAP_NONE;

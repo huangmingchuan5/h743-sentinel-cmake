@@ -21,19 +21,21 @@
 
 /* ---- 原始寄存器操作（不加锁；由下面的公开函数统一持锁） ---- */
 
+//将val地址下的 1字节 数据写入 reg 起始地址后
 static uint8_t Ap_WriteReg(uint8_t reg, uint8_t val)
 {
   return (uint8_t)HAL_I2C_Mem_Write(&hi2c4, (uint16_t)(AP3216C_ADDR7 << 1), reg,
                                     I2C_MEMADD_SIZE_8BIT, &val, 1u, AP3216C_IO_TIMEOUT_MS);
 }
 
+//读取len个字节的数据放进 buf 。
 static uint8_t Ap_ReadRegs(uint8_t reg, uint8_t *buf, uint16_t len)
 {
   return (uint8_t)HAL_I2C_Mem_Read(&hi2c4, (uint16_t)(AP3216C_ADDR7 << 1), reg,
                                    I2C_MEMADD_SIZE_8BIT, buf, len, AP3216C_IO_TIMEOUT_MS);
 }
 
-/* ---- 公开接口 ---- */
+/* ---- 公开接口（加锁） ---- */
 
 uint8_t Ap3216c_Init(void)
 {
@@ -52,7 +54,8 @@ uint8_t Ap3216c_Init(void)
     return st;
   }
 
-  HAL_Delay(100);                     /* 等复位完成（本函数在开机阶段调用，HAL_Delay 可用） */
+  //这儿的加锁 分开两次
+  HAL_Delay(100);                     /* 抱着锁睡 100ms，别人全被堵死 */
 
   /* 2) 打开 ALS + PS 功能 */
   if (I2cBus_Take(I2C_BUS_TIMEOUT_MS) == 0u)		//获取到锁
@@ -71,6 +74,7 @@ uint8_t Ap3216c_Init(void)
   return 0u;
 }
 
+//读取两字节ALS
 uint8_t Ap3216c_ReadAls(uint16_t *raw)
 {
   uint8_t buf[2];
@@ -80,7 +84,7 @@ uint8_t Ap3216c_ReadAls(uint16_t *raw)
   {
     return I2C_BUS_ERR_BUSY;
   }
-  /* 先读低字节、再读高字节（顺序读取会让芯片锁存这组数据，保证高低字节配套） */
+  /* 先读低字节DATA_L、再读高字节 , 低字节在前 */
   st = Ap_ReadRegs(AP3216C_RA_ALS_DATA_L, buf, 2u);
   I2cBus_Give();
 
@@ -93,6 +97,7 @@ uint8_t Ap3216c_ReadAls(uint16_t *raw)
   return 0u;
 }
 
+//读取两字节PS
 uint8_t Ap3216c_ReadPs(uint16_t *ps)
 {
   uint8_t  buf[2];
@@ -113,7 +118,8 @@ uint8_t Ap3216c_ReadPs(uint16_t *ps)
 
   d = (uint16_t)((uint16_t)buf[0] | ((uint16_t)buf[1] << 8));		//拼接16位
 
-  /* 低字节 bit[3:0] + 高字节 bit[5:0] 拼成 10 位数据；bit15 是"靠近"标志 */
+  /*  PS 有效数据只有 10 位：低字节 bit[3:0]（4 位）+ 高字节 bit[5:0]（6 位）= 10 位  */
+  /*  低字节 bit[3:0] + 高字节 bit[5:0] 拼成 10 位数据；bit15 是"靠近"标志           */
   *ps = (uint16_t)(((d & 0x000Fu) | ((uint16_t)((d >> 8) & 0x3Fu) << 4))
                    | (uint16_t)(d & 0x8000u));
 

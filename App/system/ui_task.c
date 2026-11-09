@@ -28,8 +28,8 @@
 #define BUZZ_PERIOD_MS      (BUZZ_ON_MS + BUZZ_OFF_MS)
 
 static TaskHandle_t s_uiTask = NULL;
-static uint8_t      s_alarmLatencyValid = 0u;
-static uint32_t     s_alarmLatencyMs    = 0u;
+static uint8_t      s_alarmLatencyValid = 0u;      //是否已测量过
+static uint32_t     s_alarmLatencyMs    = 0u;      //延迟毫秒数
 
 static void Ui_BuzzerSet(uint8_t on)
 {
@@ -39,12 +39,12 @@ static void Ui_BuzzerSet(uint8_t on)
 static void Ui_HwInit(void)
 {
 	GPIO_InitTypeDef g = {0};
-	
+
 	__HAL_RCC_GPIOA_CLK_ENABLE();
 	__HAL_RCC_GPIOC_CLK_ENABLE();
 	__HAL_RCC_GPIOI_CLK_ENABLE();
 	__HAL_RCC_SYSCFG_CLK_ENABLE();
-	
+
   /* 蜂鸣器：PI8 推挽输出，默认静音 */
 	g.Pin   = BUZZER_PIN;
 	g.Mode  = GPIO_MODE_OUTPUT_PP;
@@ -52,16 +52,16 @@ static void Ui_HwInit(void)
 	g.Speed = GPIO_SPEED_FREQ_LOW;
 	HAL_GPIO_Init(GPIOI, &g);
 	Ui_BuzzerSet(0u);				//设置为默认的低电平，不响
-	
+
 	/* 按键：上拉输入，按下为低电平 → 下降沿中断 */
 	g.Mode = GPIO_MODE_IT_FALLING;
 	g.Pull = GPIO_PULLUP;
 	g.Pin = KEY1_PIN;
-	HAL_GPIO_Init(GPIOA, &g);
-	
+	HAL_GPIO_Init(GPIOA, &g);   //PA0
+
 	g.Pin = KEY2_PIN;
-	HAL_GPIO_Init(GPIOC, &g);
-	
+	HAL_GPIO_Init(GPIOC, &g);   //PC13
+
 	/* 调用 FreeRTOS FromISR 接口的中断：优先级必须 ≥5,不然无法被屏蔽 */
 	HAL_NVIC_SetPriority(EXTI0_IRQn, 5u, 0u);
 	HAL_NVIC_EnableIRQ(EXTI0_IRQn);
@@ -87,7 +87,7 @@ static void UiTask(void *argument)
   TickType_t keyEdge     = 0u;
   uint8_t    keyPending  = 0u;
   uint8_t    alarmPrev   = 0u;
-  uint16_t   buzzPhase   = 0u;
+  uint16_t   buzzPhase   = 0u;      //0-->处于“响”；
   TickType_t lastWake    = xTaskGetTickCount();   /* 固定 50 ms 节拍 */
 
   (void)argument;
@@ -96,43 +96,45 @@ static void UiTask(void *argument)
   {
     /* 非阻塞读事件位：xEventGroupWaitBits 的 pdFALSE/pdFALSE 组合在任一粘滞位
        （报警锁存、EVT_LOG_FULL）置位时会立刻返回，导致 prio4 的 UiTask 忙转，
-       饿死 CON/LOG/MON/TmrSvc，最终 HealthTask 停喂 IWDG 形成复位死循环。 */
-    EventBits_t bits = (sysEvents != NULL) ? xEventGroupGetBits(sysEvents) : 0u;
+       饿死 CON/LOG/MON/TmrSvc，最终 HealthTask 停喂 IWDG 形成复位死循环。
+    */
+    //bits返回完整位值（uxReturn = pxEventBits->uxEventBits）
+    EventBits_t bits = (sysEvents != NULL) ? xEventGroupGetBits(sysEvents) : 0u;      //`xEventGroupGetBits()` 只是**只读地返回当前位值,不清除任何位**。
     TickType_t now   = xTaskGetTickCount();
     uint8_t    alarm = Alarm_IsActive();
 
     /* 0) 报警刚触发：量一次"确认 → 声光"延迟（供 alarm 命令读出） */
-    if ((alarm != 0u) && (alarmPrev == 0u))
+    if ((alarm != 0u) && (alarmPrev == 0u))   //本轮有报警(alarm != 0)且上一轮没报警(alarmPrev == 0)。
     {
       s_alarmLatencyMs    = (uint32_t)((now - Alarm_GetTriggerTick()) * portTICK_PERIOD_MS);
-      s_alarmLatencyValid = 1u;
+      s_alarmLatencyValid = 1u;           //本次测量合法
       buzzPhase           = 0u;          /* 从"响"开始，避免最多 300ms 的静默 */
     }
-    else if (alarm == 0u)
+    else if (alarm == 0u)     //报警消失
     {
       buzzPhase = 0u;
     }
-    alarmPrev = alarm;
+    alarmPrev = alarm;      //保存本轮是否报警（报警1）
 
     /* 1) 按键：EXTI 通知 → 20ms 后读电平确认（消抖） */
-    if (ulTaskNotifyTake(pdTRUE, 0u) > 0u)
+    if (ulTaskNotifyTake(pdTRUE, 0u) > 0u)//取走清零，并返回之前的那一个旧通知值（非0表示有事件发生）
     {
       keyEdge = now;
       keyPending = 1u;
     }
 
     if ((keyPending != 0u) &&
-        ((TickType_t)(now - keyEdge) >= pdMS_TO_TICKS(KEY_DEBOUNCE_MS)))
+        ((TickType_t)(now - keyEdge) >= pdMS_TO_TICKS(KEY_DEBOUNCE_MS)))    //消抖时长为20ms（抖动时间长度>20ms进if）
     {
       keyPending = 0u;
 
       if (HAL_GPIO_ReadPin(GPIOA, KEY1_PIN) == GPIO_PIN_RESET)
       {
-        Alarm_SetMuted((Alarm_IsMuted() != 0u) ? 0u : 1u);
+        Alarm_SetMuted((Alarm_IsMuted() != 0u) ? 0u : 1u);  //静音s_muted == 1-->muted == 0--> s_muted == 0 取反操作
       }
       else if (HAL_GPIO_ReadPin(GPIOC, KEY2_PIN) == GPIO_PIN_RESET)
       {
-        Alarm_Clear();
+        Alarm_Clear();      //清除报警
       }
     }
 
@@ -153,8 +155,9 @@ static void UiTask(void *argument)
     /* 3) 蜂鸣器：报警且未静音 → 200ms 响 / 300ms 停（相位在报警起点清零） */
     if ((alarm != 0u) && (Alarm_IsMuted() == 0u))
     {
-      Ui_BuzzerSet((buzzPhase < BUZZ_ON_MS) ? 1u : 0u);
+      Ui_BuzzerSet((buzzPhase < BUZZ_ON_MS) ? 1u : 0u); // 1响
       buzzPhase = (uint16_t)((buzzPhase + UI_PERIOD_MS) % BUZZ_PERIOD_MS);
+      //相位每次前进 UI_PERIOD_MS（50ms），到 500 就回绕到 0，形成 500ms 循环。 500%500 == 0
     }
     else
     {
@@ -165,10 +168,11 @@ static void UiTask(void *argument)
 
     /* 每轮无条件阻塞一次：按键仍由 ulTaskNotifyTake(...,0) 在本轮内轮询，
        响应最多晚一个 50 ms 节拍。 */
-    vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(UI_PERIOD_MS));
+    vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(UI_PERIOD_MS));    //步进50ms
   }
 }
 
+//初始化并UiTask创建任务
 void Ui_Start(void)
 {
   Ui_HwInit();

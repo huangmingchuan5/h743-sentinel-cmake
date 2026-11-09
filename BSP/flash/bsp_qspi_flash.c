@@ -21,12 +21,14 @@
 #define FLASH_CMD_SECTOR_ERASE   0x20u
 #define FLASH_CMD_ENTER_4BYTE    0xB7u
 
-/* 把命令结构体的公共字段填好：单线指令、不发地址/数据，其余都清空 
-*	QSPI 命令结构体初始化辅助函数。它的作用是先给 QSPI_CommandTypeDef 结构体赋予一个“基础模板”配置
+/*
+*   把命令结构体的公共字段填好：单线指令、不发地址/数据，其余都清空
+* 	QSPI 命令结构体初始化辅助函数。它的作用是先给 QSPI_CommandTypeDef 结构体赋予一个“基础模板”配置
+*   不然一个个配置太坐牢了
 */
 static void Flash_FillCmd(QSPI_CommandTypeDef *cmd, uint8_t instr)
 {
-  cmd->Instruction        = instr;
+  cmd->Instruction        = instr;                      /*指定发送的指令*/
   cmd->InstructionMode    = QSPI_INSTRUCTION_1_LINE;
   cmd->Address            = 0u;
   cmd->AddressSize        = QSPI_ADDRESS_32_BITS;      /* 4 字节地址（Flash_Init 已进入 4 字节模式） */
@@ -73,11 +75,12 @@ uint8_t Flash_WaitBusy(void)
   cmd.DataMode = QSPI_DATA_1_LINE;
   cmd.NbData   = 1u;
 
-  /* 一直读到 状态寄存器 bit0(WIP) = 0 为止；芯片写/擦期间它不会理我们 */
+  /* 一直读到 状态寄存器 bit0(WIP) = 0 为止（不忙）；芯片写/擦期间它不会理我们 */
+  /* mask & WIP == MASK*/
   poll.Match           = 0x00000000u;
   poll.Mask            = 0x00000001u;
   poll.MatchMode       = QSPI_MATCH_MODE_AND;
-  poll.StatusBytesSize = 1u;
+  poll.StatusBytesSize = 1u;        //1字节
   poll.Interval        = 0x10u;
   poll.AutomaticStop   = QSPI_AUTOMATIC_STOP_ENABLE;
 
@@ -93,7 +96,7 @@ uint8_t Flash_ReadID(uint32_t *id)
 
   Flash_FillCmd(&cmd, FLASH_CMD_READ_ID);
   cmd.DataMode = QSPI_DATA_1_LINE;
-  cmd.NbData   = 3u;
+  cmd.NbData   = 3u;          //3bytes data
 
   if (HAL_QSPI_Command(&hqspi, &cmd, FLASH_TIMEOUT_MS) != HAL_OK)
   {
@@ -111,24 +114,23 @@ uint8_t Flash_ReadID(uint32_t *id)
   return FLASH_OK;
 }
 
+/*  确认芯片在不在  +  进入四字节地址模式  */
 uint8_t Flash_Init(uint32_t *id)
 {
   uint32_t jedec = 0u;
   uint8_t  st;
 
-  st = Flash_ReadID(&jedec);
-	
+  st = Flash_ReadID(&jedec);    //jedec存入3字节拼装ID
+
   if (st != FLASH_OK)
   {
     return st;
-  }	
-	
-  if (id != NULL)		//地址非空
-  {
-    *id = jedec;
   }
 
-
+  if (id != NULL)		//地址非空
+  {
+    *id = jedec;        //从局部变量jedec放入了id
+  }
   //进入 4 字节地址模式"是整个初始化流程的最后一步
   return Flash_Enter4ByteMode();
 }
@@ -179,12 +181,13 @@ uint8_t Flash_PageWrite(uint32_t addr, uint8_t *buf, uint32_t len)
   cmd.Address     = addr;
   cmd.AddressMode = QSPI_ADDRESS_1_LINE;
   cmd.DataMode    = QSPI_DATA_1_LINE;
-  cmd.NbData      = len;
+  cmd.NbData      = len;                      //写入传入 字节数
 
   if (HAL_QSPI_Command(&hqspi, &cmd, FLASH_TIMEOUT_MS) != HAL_OK)
   {
     return FLASH_ERR;
   }
+
   if (HAL_QSPI_Transmit(&hqspi, buf, FLASH_TIMEOUT_MS) != HAL_OK)
   {
     return FLASH_ERR;
@@ -225,7 +228,7 @@ uint8_t Flash_EraseLogArea(void)
 
   for (i = 0u; i < (uint8_t)FLASH_LOG_SECTORS; i++)
   {
-    st = Flash_EraseSector(FLASH_LOG_BASE + ((uint32_t)i * FLASH_ERASE_SIZE));
+    st = Flash_EraseSector(FLASH_LOG_BASE + ((uint32_t)i * FLASH_ERASE_SIZE));    //依次删除每一个扇区
     if (st != FLASH_OK)
     {
       return st;

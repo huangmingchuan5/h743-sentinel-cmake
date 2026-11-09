@@ -20,7 +20,7 @@
 
 #define BREATH_TICKS   200u       /* 200 × 10 ms = 2 秒一个完整呼吸周期 */
 
-static App_Color_t s_color      = COLOR_GREEN;   /* 上电默认：白光（LedTask 启动后会立刻接管颜色） */
+static App_Color_t s_color      = COLOR_GREEN;   /* 上电默认：绿光（LedTask 启动后会立刻接管颜色） */
 static uint8_t     s_brightness = 100u;          /* pwm 命令设的亮度（呼吸幅度上限） */
 static uint16_t    s_phase      = 0u;            /* 三角波位置：0 → 100 → 0 */
 static volatile LedMode_t s_mode = LED_MODE_NORMAL;
@@ -35,6 +35,7 @@ static void Led_Lock(void)
   }
 }
 
+//退出临界区
 static void Led_Unlock(void)
 {
   if (xTaskGetSchedulerState() != taskSCHEDULER_NOT_STARTED)
@@ -80,6 +81,7 @@ static void Led_Update(void)
  *   TIM6 —— 呼吸灯：每 10 ms 把呼吸比例推一格并刷新 CCR。 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
+  /*使用if-else if分支区别定时器*/
   if (htim->Instance == TIM7)
   {
     HAL_IncTick();                 /* HAL 时基，1 ms 一次 */
@@ -97,7 +99,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
       case LED_MODE_FLASH:               /* 蓝色慢闪：250ms 亮 / 250ms 灭 */
         s_blink = (uint16_t)((s_blink + 1u) % 50u);
-        Pwm_SetBrightness(PWM_CH_RED,   0u);			
+        Pwm_SetBrightness(PWM_CH_RED,   0u);
         Pwm_SetBrightness(PWM_CH_GREEN, 0u);
         Pwm_SetBrightness(PWM_CH_BLUE,  (s_blink < 25u) ? 100u : 0u);		//0-24 → 亮（25 × 10ms = 250ms），25-49 → 灭（250ms）
         break;
@@ -151,6 +153,7 @@ void Led_SetColor(App_Color_t color)
 
 void Led_SetBrightness(uint8_t brightness)
 {
+  //brightness > 100 忽略
   if (brightness <= 100u)
   {
     Led_Lock();
